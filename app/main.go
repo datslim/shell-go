@@ -16,6 +16,7 @@ func init() {
 		"echo": echo,
 		"type": whatType,
 		"pwd":  pwd,
+		"cd":   cd,
 	}
 }
 
@@ -60,7 +61,7 @@ func echo(input []string) {
 	if len(input) < 1 {
 		fmt.Println("error: missing operand for echo.")
 	}
-	fmt.Print(strings.Join(input, " "))
+	fmt.Println(strings.Join(input, " "))
 }
 
 func whatType(input []string) {
@@ -104,4 +105,33 @@ func pwd(input []string) {
 		panic(err)
 	}
 	fmt.Println(currentWorkingDirectory)
+}
+
+func cd(directory []string) {
+	homeDirectory := os.Getenv("HOME")
+	if len(directory) == 0 {
+		os.Chdir(homeDirectory)
+	} else if strings.HasPrefix(directory[0], "/") {
+		toAbsolutePath(homeDirectory, directory)
+	} else {
+		toRelativePath(directory[0])
+	}
+}
+
+func toAbsolutePath(homeDirectory string, directory []string) {
+	destination := directory[len(directory)-1]
+	destination = strings.ReplaceAll(destination, "~", homeDirectory)
+	err := os.Chdir(destination)
+	if err != nil {
+		fmt.Printf("cd: %v: No such file or directory\n", destination)
+	}
+}
+
+func toRelativePath(directory string) {
+	currentDirectory, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	resultPath := filepath.Join(currentDirectory, directory)
+	os.Chdir(resultPath)
 }
