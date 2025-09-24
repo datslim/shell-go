@@ -1,11 +1,14 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/chzyer/readline"
+	"github.com/fatih/color"
 )
 
 var COMMANDS map[string]func([]string)
@@ -21,9 +24,30 @@ func init() {
 }
 
 func main() {
+
+	autoCompleter := readline.NewPrefixCompleter(
+		readline.PcItem("exit"),
+		readline.PcItem("echo"),
+		readline.PcItem("type"),
+		readline.PcItem("pwd"),
+		readline.PcItem("cd"),
+	)
+	l, err := readline.NewEx(&readline.Config{
+		Prompt:       "$ ",
+		AutoComplete: autoCompleter,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	for {
+		currDir, _ := os.Getwd()
+		color.Set(color.FgCyan)
+		fmt.Printf("%s ", currDir)
+		color.Unset()
 		fmt.Fprint(os.Stdout, "$ ")
-		input, err := bufio.NewReader(os.Stdin).ReadString('\n')
+
+		input, err := l.Readline()
 		if err != nil {
 			return
 		}
@@ -45,11 +69,15 @@ func evaluate(rawInput string) {
 	if ok {
 		output(optional)
 	} else {
-		fmt.Println(command + ": command not found")
+		color.Red(command + ": command not found")
 	}
 }
 
 func exit(input []string) {
+	if len(input) == 0 {
+		os.Exit(0)
+	}
+
 	if strings.TrimSpace(input[len(input)-1]) != "0" {
 		os.Exit(1)
 	} else {
@@ -59,7 +87,7 @@ func exit(input []string) {
 
 func echo(input []string) {
 	if len(input) < 1 {
-		fmt.Println("error: missing operand for echo.")
+		color.Red("error: missing operand for echo.")
 	}
 	fmt.Println(strings.Join(input, " "))
 }
@@ -67,7 +95,7 @@ func echo(input []string) {
 func whatType(input []string) {
 	paths := strings.Split(os.Getenv("PATH"), ":")
 	if len(input) < 1 {
-		fmt.Println("error: missing operand for type.")
+		color.Red("error: missing operand for type.")
 	}
 
 	ourCommand := input[0]
@@ -81,7 +109,7 @@ func whatType(input []string) {
 		if filePath != "" {
 			fmt.Printf("%s is %s\n", ourCommand, filePath)
 		} else {
-			fmt.Println(ourCommand + ": command not found")
+			color.Red(ourCommand + ": command not found")
 		}
 	}
 }
@@ -122,7 +150,7 @@ func toAbsolutePath(homeDirectory string, directory []string) {
 	destination = strings.ReplaceAll(destination, "~", homeDirectory)
 	err := os.Chdir(destination)
 	if err != nil {
-		fmt.Printf("cd: %v: No such file or directory\n", destination)
+		fmt.Printf("cd: %v:", destination)
 	}
 }
 
@@ -132,5 +160,8 @@ func toRelativePath(directory string) {
 		panic(err)
 	}
 	resultPath := filepath.Join(currentDirectory, directory)
-	os.Chdir(resultPath)
+	err = os.Chdir(resultPath)
+	if err != nil {
+		color.Red("cd: %v: No such file or directory\n", directory)
+	}
 }
