@@ -198,7 +198,6 @@ func getExecutablesFromPATH() []readline.PrefixCompleterInterface {
 			}
 		}
 	}
-
 	return items
 }
 
