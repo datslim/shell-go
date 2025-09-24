@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -39,13 +40,7 @@ func main() {
 	readHistoryFromFile(historyfile)
 
 	autoCompleter := readline.NewPrefixCompleter(
-		readline.PcItem("exit"),
-		readline.PcItem("echo"),
-		readline.PcItem("type"),
-		readline.PcItem("pwd"),
-		readline.PcItem("cd"),
-		readline.PcItem("ls"),
-		readline.PcItem("history"),
+		getExecutablesFromPATH()...,
 	)
 	fmt.Print(historyfile)
 	l, err := readline.NewEx(&readline.Config{
@@ -94,9 +89,20 @@ func execute(rawInput string) {
 	command, optional := args[0], args[1:]
 
 	output, ok := COMMANDS[command]
-
+	paths := strings.Split(os.Getenv("PATH"), ":")
+	execPath := findExecutable(command, paths)
 	if ok {
 		output(optional)
+	} else if execPath != "" {
+		cmd := exec.Command(execPath, optional...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
+
+		err := cmd.Run()
+		if err != nil {
+			color.Red("error: %v", err)
+		}
 	} else {
 		color.Red(command + ": command not found")
 	}
@@ -156,6 +162,44 @@ func findExecutable(command string, paths []string) string {
 	}
 
 	return ""
+}
+
+func getExecutablesFromPATH() []readline.PrefixCompleterInterface {
+	var items []readline.PrefixCompleterInterface
+
+	for cmd := range COMMANDS {
+		items = append(items, readline.PcItem(cmd))
+	}
+
+	paths := strings.Split(os.Getenv("PATH"), ":")
+	seen := make(map[string]bool)
+
+	for _, path := range paths {
+		files, err := os.ReadDir(path)
+		if err != nil {
+			continue
+		}
+
+		for _, file := range files {
+			if file.IsDir() {
+				continue
+			}
+
+			name := file.Name()
+			if seen[name] {
+				continue
+			}
+
+			filePath := filepath.Join(path, name)
+			fileInfo, err := os.Stat(filePath)
+			if err == nil && fileInfo.Mode().Perm()&0111 != 0 {
+				items = append(items, readline.PcItem(name))
+				seen[name] = true
+			}
+		}
+	}
+
+	return items
 }
 
 func pwd(input []string) {
