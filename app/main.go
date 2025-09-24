@@ -14,6 +14,7 @@ import (
 )
 
 var COMMANDS map[string]func([]string)
+var HISTORY = make([]string, 0)
 
 func init() {
 	COMMANDS = map[string]func([]string){
@@ -29,6 +30,7 @@ func init() {
 }
 
 func main() {
+	readHistoryFromFile("/tmp/shell_history")
 	autoCompleter := readline.NewPrefixCompleter(
 		readline.PcItem("exit"),
 		readline.PcItem("echo"),
@@ -67,7 +69,9 @@ func main() {
 		if err != nil {
 			return
 		}
-
+		if strings.TrimSpace(input) != "" {
+			HISTORY = append(HISTORY, input)
+		}
 		execute(input)
 	}
 }
@@ -199,38 +203,61 @@ func ls(input []string) {
 		color.HiMagenta(file.Name())
 	}
 }
-
 func history(input []string) {
-	file, err := os.Open("/tmp/shell_history")
-	if err != nil {
+	if len(input) >= 2 && input[0] == "-r" {
+		readHistoryFromFile(input[1])
 		return
 	}
-	defer file.Close()
 
-	var lines []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
+	if len(input) == 1 && input[0] == "-r" {
+		readHistoryFromFile("/tmp/shell_history")
+		return
 	}
 
-	if len(input) > 0 {
-		n, err := strconv.Atoi(input[0])
+	if len(input) == 1 {
+		numberOfCommand, err := strconv.Atoi(input[0])
 		if err != nil {
 			color.Red("error: argument should be a number.")
 			return
 		}
-		start := len(lines) - n
-		if start < 0 {
-			start = 0
+		if numberOfCommand > len(HISTORY) {
+			numberOfCommand = len(HISTORY)
 		}
-		lines = lines[start:]
+		start := len(HISTORY) - numberOfCommand
+		for i := start; i < len(HISTORY); i++ {
+			color.Set(color.FgHiMagenta)
+			fmt.Printf(" %d  ", i+1)
+			color.Unset()
+			fmt.Printf("%s\n", HISTORY[i])
+		}
+		return
 	}
 
-	for i, line := range lines {
+	for i, command := range HISTORY {
 		color.Set(color.FgHiMagenta)
 		fmt.Printf(" %d  ", i+1)
 		color.Unset()
-		fmt.Printf("%s\n", line)
+		fmt.Printf("%s\n", command)
+	}
+}
+
+func readHistoryFromFile(pathToHistory string) {
+	_, err := os.Stat(pathToHistory)
+	if err != nil {
+		color.Red("error: history file not found.")
+		return
+	} else {
+		file, err := os.Open(pathToHistory)
+		if err != nil {
+			panic(err)
+		}
+		defer file.Close()
+		scanner := bufio.NewScanner(file)
+
+		for scanner.Scan() {
+			HISTORY = append(HISTORY, scanner.Text())
+		}
+
 	}
 }
 
