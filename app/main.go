@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/chzyer/readline"
@@ -196,10 +197,30 @@ func ls(input []string) {
 }
 
 func history(input []string) {
-	for i, command := range HISTORY {
-		color.Set(color.FgHiMagenta)
-		fmt.Printf(" %d  ", i+1)
-		color.Unset()
-		fmt.Printf("%s\n", command)
+	if len(input) > 0 {
+		numberOfCommand, err := strconv.Atoi(input[0])
+		if err != nil {
+			color.Red("error: argument should be a number.")
+			return
+		}
+		if numberOfCommand > len(HISTORY) {
+			color.Red("error: number of command is out of range.")
+			return
+		} else {
+			for i := len(HISTORY) - numberOfCommand; i < len(HISTORY); i++ {
+				color.Set(color.FgHiMagenta)
+				fmt.Printf(" %d  ", i+1)
+				color.Unset()
+				fmt.Printf("%s\n", HISTORY[i])
+			}
+		}
+	} else {
+		for i, command := range HISTORY {
+			color.Set(color.FgHiMagenta)
+			fmt.Printf(" %d  ", i+1)
+			color.Unset()
+			fmt.Printf("%s\n", command)
+		}
 	}
+
 }
