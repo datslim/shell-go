@@ -32,20 +32,28 @@ func main() {
 		readline.PcItem("pwd"),
 		readline.PcItem("cd"),
 	)
-	l, err := readline.NewEx(&readline.Config{
-		Prompt:       "$ ",
-		AutoComplete: autoCompleter,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	for {
+
 		currDir, _ := os.Getwd()
-		color.Set(color.FgCyan)
-		fmt.Printf("%s ", currDir)
-		color.Unset()
-		fmt.Fprint(os.Stdout, "$ ")
+		homeDir, _ := os.UserHomeDir()
+		var beautifulPwd string
+		if after, found := strings.CutPrefix(currDir, homeDir); found {
+			beautifulPwd = "~" + after
+		} else {
+			beautifulPwd = currDir
+		}
+
+		prompt := color.CyanString("%s ", beautifulPwd) + "$ "
+
+		l, err := readline.NewEx(&readline.Config{
+			Prompt:       prompt,
+			AutoComplete: autoCompleter,
+		})
+
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		input, err := l.Readline()
 		if err != nil {
