@@ -30,7 +30,11 @@ func init() {
 }
 
 func main() {
-	readHistoryFromFile("/tmp/shell_history")
+	if histfile, exists := os.LookupEnv("HISTFILE"); exists {
+		readHistoryFromFile(histfile)
+	} else {
+		readHistoryFromFile("/tmp/shell_history")
+	}
 	autoCompleter := readline.NewPrefixCompleter(
 		readline.PcItem("exit"),
 		readline.PcItem("echo"),
@@ -204,9 +208,21 @@ func ls(input []string) {
 	}
 }
 func history(input []string) {
-	if len(input) >= 2 && input[0] == "-r" {
-		readHistoryFromFile(input[1])
-		return
+	if len(input) >= 2 {
+		flag := input[0]
+		path := input[1]
+
+		switch flag {
+		case "-r":
+			readHistoryFromFile(path)
+			return
+		case "-a":
+			appendHistoryToFile(path)
+			return
+		case "-w":
+			appendHistoryToFile(path)
+			return
+		}
 	}
 
 	if len(input) == 1 && input[0] == "-r" {
@@ -259,6 +275,25 @@ func readHistoryFromFile(pathToHistory string) {
 		}
 
 	}
+}
+
+func appendHistoryToFile(pathToHistory string) {
+	file, err := os.OpenFile(pathToHistory, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+
+	for _, command := range HISTORY {
+		_, err := writer.WriteString(command + "\n")
+		if err != nil {
+			panic(err)
+		}
+	}
+	writer.WriteString("\n")
+	writer.Flush()
 }
 
 func clear(input []string) {
