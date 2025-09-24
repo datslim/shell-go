@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os"
@@ -13,7 +14,6 @@ import (
 )
 
 var COMMANDS map[string]func([]string)
-var HISTORY = make([]string, 0)
 
 func init() {
 	COMMANDS = map[string]func([]string){
@@ -24,6 +24,7 @@ func init() {
 		"cd":      cd,
 		"ls":      ls,
 		"history": history,
+		"clear":   clear,
 	}
 }
 
@@ -38,6 +39,17 @@ func main() {
 		readline.PcItem("history"),
 	)
 
+	l, err := readline.NewEx(&readline.Config{
+		AutoComplete: autoCompleter,
+		HistoryFile:  "/tmp/shell_history",
+	})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer l.Close()
+
 	for {
 		currDir, _ := os.Getwd()
 		homeDir, _ := os.UserHomeDir()
@@ -49,21 +61,13 @@ func main() {
 		}
 
 		prompt := color.CyanString("%s ", beautifulPwd) + "$ "
-
-		l, err := readline.NewEx(&readline.Config{
-			Prompt:       prompt,
-			AutoComplete: autoCompleter,
-		})
-
-		if err != nil {
-			log.Fatal(err)
-		}
+		l.SetPrompt(prompt)
 
 		input, err := l.Readline()
-		HISTORY = append(HISTORY, input)
 		if err != nil {
 			return
 		}
+
 		execute(input)
 	}
 }
@@ -197,30 +201,39 @@ func ls(input []string) {
 }
 
 func history(input []string) {
+	file, err := os.Open("/tmp/shell_history")
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+
 	if len(input) > 0 {
-		numberOfCommand, err := strconv.Atoi(input[0])
+		n, err := strconv.Atoi(input[0])
 		if err != nil {
 			color.Red("error: argument should be a number.")
 			return
 		}
-		if numberOfCommand > len(HISTORY) {
-			color.Red("error: number of command is out of range.")
-			return
-		} else {
-			for i := len(HISTORY) - numberOfCommand; i < len(HISTORY); i++ {
-				color.Set(color.FgHiMagenta)
-				fmt.Printf(" %d  ", i+1)
-				color.Unset()
-				fmt.Printf("%s\n", HISTORY[i])
-			}
+		start := len(lines) - n
+		if start < 0 {
+			start = 0
 		}
-	} else {
-		for i, command := range HISTORY {
-			color.Set(color.FgHiMagenta)
-			fmt.Printf(" %d  ", i+1)
-			color.Unset()
-			fmt.Printf("%s\n", command)
-		}
+		lines = lines[start:]
 	}
 
+	for i, line := range lines {
+		color.Set(color.FgHiMagenta)
+		fmt.Printf(" %d  ", i+1)
+		color.Unset()
+		fmt.Printf("%s\n", line)
+	}
+}
+
+func clear(input []string) {
+	readline.ClearScreen(os.Stdout)
 }
