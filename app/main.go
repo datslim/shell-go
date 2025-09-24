@@ -30,11 +30,14 @@ func init() {
 }
 
 func main() {
+	var historyfile string
 	if histfile, exists := os.LookupEnv("HISTFILE"); exists {
-		readHistoryFromFile(histfile)
+		historyfile = histfile
 	} else {
-		readHistoryFromFile("/tmp/shell_history")
+		historyfile = "/tmp/shell_history"
 	}
+	readHistoryFromFile(historyfile)
+
 	autoCompleter := readline.NewPrefixCompleter(
 		readline.PcItem("exit"),
 		readline.PcItem("echo"),
@@ -44,10 +47,10 @@ func main() {
 		readline.PcItem("ls"),
 		readline.PcItem("history"),
 	)
-
+	fmt.Print(historyfile)
 	l, err := readline.NewEx(&readline.Config{
 		AutoComplete: autoCompleter,
-		HistoryFile:  "/tmp/shell_history",
+		HistoryFile:  historyfile,
 	})
 
 	if err != nil {
@@ -75,6 +78,7 @@ func main() {
 		}
 		if strings.TrimSpace(input) != "" {
 			HISTORY = append(HISTORY, input)
+			l.SaveHistory(input)
 		}
 		execute(input)
 	}
