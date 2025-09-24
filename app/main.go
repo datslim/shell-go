@@ -70,7 +70,7 @@ func whatType(input []string) {
 		fmt.Println("error: missing operand for type.")
 	}
 
-	ourCommand := input[0][:len(input[0])-1]
+	ourCommand := input[0]
 
 	_, ok := COMMANDS[ourCommand]
 	if ok {
@@ -81,7 +81,6 @@ func whatType(input []string) {
 		if filePath != "" {
 			fmt.Printf("%s is %s\n", ourCommand, filePath)
 		} else {
-
 			fmt.Println(ourCommand + ": command not found")
 		}
 	}
@@ -111,7 +110,7 @@ func cd(directory []string) {
 	homeDirectory := os.Getenv("HOME")
 	if len(directory) == 0 {
 		os.Chdir(homeDirectory)
-	} else if strings.HasPrefix(directory[0], "/") {
+	} else if strings.HasPrefix(directory[0], "/") || strings.HasPrefix(directory[0], "~") {
 		toAbsolutePath(homeDirectory, directory)
 	} else {
 		toRelativePath(directory[0])
