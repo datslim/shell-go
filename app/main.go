@@ -12,29 +12,32 @@ import (
 )
 
 var COMMANDS map[string]func([]string)
+var HISTORY = make([]string, 0)
 
 func init() {
 	COMMANDS = map[string]func([]string){
-		"exit": exit,
-		"echo": echo,
-		"type": whatType,
-		"pwd":  pwd,
-		"cd":   cd,
+		"exit":    exit,
+		"echo":    echo,
+		"type":    whatType,
+		"pwd":     pwd,
+		"cd":      cd,
+		"ls":      ls,
+		"history": history,
 	}
 }
 
 func main() {
-
 	autoCompleter := readline.NewPrefixCompleter(
 		readline.PcItem("exit"),
 		readline.PcItem("echo"),
 		readline.PcItem("type"),
 		readline.PcItem("pwd"),
 		readline.PcItem("cd"),
+		readline.PcItem("ls"),
+		readline.PcItem("history"),
 	)
 
 	for {
-
 		currDir, _ := os.Getwd()
 		homeDir, _ := os.UserHomeDir()
 		var beautifulPwd string
@@ -56,14 +59,15 @@ func main() {
 		}
 
 		input, err := l.Readline()
+		HISTORY = append(HISTORY, input)
 		if err != nil {
 			return
 		}
-		evaluate(input)
+		execute(input)
 	}
 }
 
-func evaluate(rawInput string) {
+func execute(rawInput string) {
 	input := strings.TrimSpace(rawInput)
 	if input == "" {
 		return
@@ -96,6 +100,7 @@ func exit(input []string) {
 func echo(input []string) {
 	if len(input) < 1 {
 		color.Red("error: missing operand for echo.")
+		return
 	}
 	fmt.Println(strings.Join(input, " "))
 }
@@ -104,13 +109,15 @@ func whatType(input []string) {
 	paths := strings.Split(os.Getenv("PATH"), ":")
 	if len(input) < 1 {
 		color.Red("error: missing operand for type.")
+		return
 	}
 
 	ourCommand := input[0]
 
 	_, ok := COMMANDS[ourCommand]
 	if ok {
-		fmt.Printf("%v is a shell builtin\n", ourCommand)
+
+		fmt.Printf("%v is a shell builtin\n", color.GreenString("%v", ourCommand))
 	} else {
 		filePath := findExecutable(ourCommand, paths)
 
@@ -171,5 +178,28 @@ func toRelativePath(directory string) {
 	err = os.Chdir(resultPath)
 	if err != nil {
 		color.Red("cd: %v: No such file or directory\n", directory)
+	}
+}
+
+func ls(input []string) {
+	currentDirectory, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	files, err := os.ReadDir(currentDirectory)
+	if err != nil {
+		panic(err)
+	}
+	for _, file := range files {
+		color.HiMagenta(file.Name())
+	}
+}
+
+func history(input []string) {
+	for i, command := range HISTORY {
+		color.Set(color.FgHiMagenta)
+		fmt.Printf(" %d  ", i+1)
+		color.Unset()
+		fmt.Printf("%s\n", command)
 	}
 }
